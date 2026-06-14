@@ -272,7 +272,7 @@ def get_nllb_fallback():
                         translated_texts.append(decoded)
                     return translated_texts
             
-            nllb_translator_instance = NllbTranslatorFallback(device=device)
+            nllb_translator_instance = NllbTranslatorFallback(device="cpu")
         except Exception as err:
             print(f"Indic-FS Error: Failed to load NLLB fallback translator: {err}")
     return nllb_translator_instance
@@ -281,8 +281,8 @@ def get_translator_indic():
     global _translator_indic_instance
     if _translator_indic_instance is None:
         try:
-            print("Indic-FS: Loading Indic-to-Indic translator...")
-            _translator_indic_instance = IndicTranslator(ckpt_dir="ai4bharat/indictrans2-indic-indic-1B", device=device)
+            print("Indic-FS: Loading Indic-to-Indic translator on CPU...")
+            _translator_indic_instance = IndicTranslator(ckpt_dir="ai4bharat/indictrans2-indic-indic-1B", device="cpu")
         except Exception as e:
             print(f"Indic-FS Warning: Failed to load Indic-to-Indic translator: {e}")
             _translator_indic_instance = get_nllb_fallback()
@@ -292,8 +292,8 @@ def get_translator_en():
     global _translator_en_instance
     if _translator_en_instance is None:
         try:
-            print("Indic-FS: Loading English-to-Indic translator...")
-            _translator_en_instance = IndicTranslator(ckpt_dir="ai4bharat/indictrans2-en-indic-1B", device=device)
+            print("Indic-FS: Loading English-to-Indic translator on CPU...")
+            _translator_en_instance = IndicTranslator(ckpt_dir="ai4bharat/indictrans2-en-indic-1B", device="cpu")
         except Exception as e:
             print(f"Indic-FS Warning: Failed to load English-to-Indic translator: {e}")
             _translator_en_instance = get_nllb_fallback()
