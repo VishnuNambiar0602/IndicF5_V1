@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+python-multipart
+transformers==4.49.0
+torch
+torchaudio
+soundfile
+librosa
+pydub
+numpy
+requests
+huggingface_hub
+indictranstoolkit
+f5-tts
+sentencepiece
+hf_transfer

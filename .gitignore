@@ -1,0 +1,19 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Project specific ignores (ignore contents, but keep folders via .gitkeep)
+outputs/*
+!outputs/.gitkeep
+uploads/*
+!uploads/.gitkeep
+scratch/*
+!scratch/.gitkeep
