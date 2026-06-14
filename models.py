@@ -214,11 +214,29 @@ def get_indicf5():
             clean_state_dict[new_k] = v
             
         print("Indic-FS: Loading cleaned state dict parameters into IndicF5 model...")
-        model.load_state_dict(clean_state_dict, strict=False)
+        missing, unexpected = model.load_state_dict(clean_state_dict, strict=False)
+        if missing:
+            print(f"WARNING: Missing keys: {missing}")
+        if unexpected:
+            print(f"WARNING: Unexpected keys: {unexpected}")
         model = model.to(device)
         model.eval()
         
-        _indicf5_instance = model
+        class IndicF5Wrapper:
+            def __init__(self, model_instance):
+                self.model_instance = model_instance
+            def __getattr__(self, name):
+                return getattr(self.model_instance, name)
+            def __call__(self, text: str, ref_audio_path: str, ref_text: str, **kwargs):
+                import inspect
+                sig = inspect.signature(self.model_instance.forward)
+                model_kwargs = {}
+                for k, v in kwargs.items():
+                    if k in sig.parameters:
+                        model_kwargs[k] = v
+                return self.model_instance(text, ref_audio_path=ref_audio_path, ref_text=ref_text, **model_kwargs)
+        
+        _indicf5_instance = IndicF5Wrapper(model)
         print("Indic-FS: IndicF5 loaded and cleaned successfully.")
     return _indicf5_instance
 
@@ -318,28 +336,32 @@ asr_pipeline = None
 def get_asr_pipeline():
     global asr_pipeline
     if asr_pipeline is None:
-        print("Indic-FS: Loading Whisper-tiny ASR pipeline for auto-transcription...")
+        print("Indic-FS: Loading Whisper-large-v3 ASR pipeline for auto-transcription...")
         try:
             from transformers import pipeline
             # Use GPU if available, else CPU
             device_idx = 0 if "cuda" in device else -1
             asr_pipeline = pipeline(
                 "automatic-speech-recognition",
-                model="openai/whisper-tiny",
-                device=device_idx
+                model="openai/whisper-large-v3",
+                device=device_idx,
+                generate_kwargs={"language": "hi"}
             )
             print("Indic-FS: Whisper ASR pipeline loaded successfully.")
         except Exception as e:
             print(f"Indic-FS Warning: Failed to load Whisper ASR pipeline: {e}")
     return asr_pipeline
 
-def auto_transcribe(audio_path: str) -> str:
+def auto_transcribe(audio_path: str, language: str = None) -> str:
     pipe = get_asr_pipeline()
     if pipe is None:
         return ""
     try:
         print(f"Indic-FS ASR: Transcribing {audio_path}...")
-        result = pipe(audio_path)
+        kwargs = {}
+        if language:
+            kwargs["generate_kwargs"] = {"language": language}
+        result = pipe(audio_path, **kwargs)
         transcript = result.get("text", "").strip()
         print(f"Indic-FS ASR: Transcribed text: '{transcript}'")
         return transcript

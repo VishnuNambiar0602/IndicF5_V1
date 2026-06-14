@@ -101,19 +101,18 @@ def clone_and_synthesize(
     if not ref_text_val or ref_text_val in generic_placeholders:
         print(f"Indic-FS Pipeline: Reference transcript is empty or placeholder ('{ref_text_val}'). Auto-transcribing reference voice...")
         try:
-            auto_transcript = models.auto_transcribe(ref_audio_path)
+            whisper_lang = INV_LANG_CODE_MAP.get(src_lang_it, None)
+            if src_lang_it == "eng_Latn":
+                whisper_lang = "en"
+            auto_transcript = models.auto_transcribe(ref_audio_path, language=whisper_lang)
             if auto_transcript:
                 ref_text_val = auto_transcript
                 print(f"Indic-FS Pipeline: Successfully auto-transcribed reference audio: '{ref_text_val}'")
             else:
                 raise ValueError("ASR output was empty.")
         except Exception as asr_err:
-            if not ref_text_val:
-                if src_lang_it != "eng_Latn":
-                    ref_text_val = "नमस्ते, यह मेरे आवाज का नमूना है।"
-                else:
-                    ref_text_val = "Hello, this is a sample of my voice."
-            print(f"Indic-FS Pipeline: Auto-transcription failed ({asr_err}). Using default placeholder: '{ref_text_val}'")
+            ref_text_val = ""  # Better to pass empty than a wrong language placeholder
+            print(f"Indic-FS Pipeline: Auto-transcription failed ({asr_err}). Passing empty ref_text.")
     else:
         print(f"Indic-FS Pipeline: Using user-provided reference transcript: '{ref_text_val}'")
             
@@ -142,7 +141,14 @@ def clone_and_synthesize(
             # b. Synthesize speech
             print(f"Indic-FS Pipeline: Running IndicF5 voice synthesis...")
             # IndicF5 can take a while, so we log
-            audio_out = models.indicf5(translated_text, ref_audio_path=ref_audio_path, ref_text=ref_text_val)
+            audio_out = models.indicf5(
+                translated_text,
+                ref_audio_path=ref_audio_path,
+                ref_text=ref_text_val,
+                target_lang=tgt_lang_it,
+                lang=key_code,
+                language=key_code
+            )
             
             # Post-processing synthesis output
             if hasattr(audio_out, "cpu"):
