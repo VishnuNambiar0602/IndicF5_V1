@@ -6,15 +6,15 @@ import numpy as np
 
 def load_audio(path: str) -> tuple[np.ndarray, int]:
     """
-    Load an audio file, resample to 16000 Hz, and convert to mono.
-    Returns the normalized float32 numpy array and the sample rate (16000).
+    Load an audio file, resample to 24000 Hz, and convert to mono.
+    Returns the normalized float32 numpy array and the sample rate (24000).
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"Audio file not found: {path}")
     
-    # librosa.load automatically resamples to sr (16000) and converts to mono (mono=True)
+    # librosa.load automatically resamples to sr (24000) and converts to mono (mono=True)
     # It also normalizes to float32 in [-1.0, 1.0] by default.
-    y, sr = librosa.load(path, sr=16000, mono=True)
+    y, sr = librosa.load(path, sr=24000, mono=True)
     return y.astype(np.float32), sr
 
 def save_audio(numpy_array: np.ndarray, sample_rate: int, output_path: str):

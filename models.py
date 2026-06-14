@@ -229,11 +229,15 @@ def get_indicf5():
                 return getattr(self.model_instance, name)
             def __call__(self, text: str, ref_audio_path: str, ref_text: str, **kwargs):
                 import inspect
-                sig = inspect.signature(self.model_instance.forward)
+                try:
+                    sig = inspect.signature(self.model_instance.__call__)
+                except (ValueError, TypeError):
+                    sig = inspect.signature(self.model_instance.forward)
                 model_kwargs = {}
                 for k, v in kwargs.items():
                     if k in sig.parameters:
                         model_kwargs[k] = v
+                print(f"Indic-FS IndicF5Wrapper: calling with text='{text[:40]}', ref_text='{ref_text[:40]}', kwargs={list(model_kwargs.keys())}")
                 return self.model_instance(text, ref_audio_path=ref_audio_path, ref_text=ref_text, **model_kwargs)
         
         _indicf5_instance = IndicF5Wrapper(model)
@@ -344,8 +348,7 @@ def get_asr_pipeline():
             asr_pipeline = pipeline(
                 "automatic-speech-recognition",
                 model="openai/whisper-large-v3",
-                device=device_idx,
-                generate_kwargs={"language": "hi"}
+                device=device_idx
             )
             print("Indic-FS: Whisper ASR pipeline loaded successfully.")
         except Exception as e:
