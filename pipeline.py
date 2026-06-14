@@ -78,6 +78,25 @@ def detect_language(text: str) -> str:
         return "hin_Deva"  # Fallback to Hindi Devanagari
     return max_lang
 
+def translate_google(text: str, target_lang: str) -> str:
+    """
+    Translate text using the free Google Translate API.
+    """
+    import urllib.parse
+    import urllib.request
+    import json
+    try:
+        quoted = urllib.parse.quote(text)
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={target_lang}&dt=t&q={quoted}"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            translation = "".join([segment[0] for segment in data[0] if segment[0]])
+            return translation
+    except Exception as e:
+        print(f"Indic-FS: Google Translate API failed ({e}).")
+        return None
+
 def clone_and_synthesize(
     ref_audio_path: str, 
     input_text: str, 
@@ -142,14 +161,20 @@ def clone_and_synthesize(
             # a. Translate text if source language is different from target
             if src_lang_it == tgt_lang_it:
                 translated_text = input_text
-                print(f"Indic-FS Pipeline: No translation needed.")
+                print(f"Indic-FS Pipeline: Source and target match. No translation needed.")
             else:
-                print(f"Indic-FS Pipeline: Translating from {src_lang_it} to {tgt_lang_it}...")
-                translations = models.translator.batch_translate([input_text], src_lang_it, tgt_lang_it)
-                if not translations:
-                    raise ValueError(f"Translation failed: empty response.")
-                translated_text = translations[0]
-                print(f"Indic-FS Pipeline: Translated text: '{translated_text}'")
+                print(f"Indic-FS Pipeline: Attempting online translation to '{tgt}'...")
+                translated_text = translate_google(input_text, tgt)
+                if translated_text:
+                    print(f"Indic-FS Pipeline: Online translation succeeded: '{translated_text}'")
+                else:
+                    print(f"Indic-FS Pipeline: Online translation failed/offline. Falling back to local translator...")
+                    print(f"Indic-FS Pipeline: Translating locally from {src_lang_it} to {tgt_lang_it}...")
+                    translations = models.translator.batch_translate([input_text], src_lang_it, tgt_lang_it)
+                    if not translations:
+                        raise ValueError(f"Translation failed: empty response.")
+                    translated_text = translations[0]
+                    print(f"Indic-FS Pipeline: Local translation: '{translated_text}'")
             
             # b. Synthesize speech
             print(f"Indic-FS Pipeline: Running XTTS-v2 voice synthesis...")

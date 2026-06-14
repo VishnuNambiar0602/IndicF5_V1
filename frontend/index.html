@@ -796,7 +796,7 @@
                         STEP 2 — Enter Speech Text
                     </h2>
                     <div class="textarea-container">
-                        <textarea id="input-text" placeholder="नमस्ते! मेरा नाम अर्जुन है और मुझे अपनी आवाज़ में अलग-अलग भाषाओं में बोलना पसंद है।"></textarea>
+                        <textarea id="input-text" placeholder="Type text in ANY language (English, French, Spanish, Hindi, Tamil, etc.) - it will automatically translate to the selected regional languages..."></textarea>
                         <span id="detected-lang" class="detector-label">Hindi (Devanagari)</span>
                     </div>
                 </div>
@@ -1305,7 +1305,7 @@
                     maxLang = lang;
                 }
             }
-            return maxVal > 0 ? maxLang : "English (Default: Hindi)";
+            return maxVal > 0 ? maxLang : "English / Other (Auto-Translate)";
         }
 
         // --- Target Languages Selector Grid Logic ---
