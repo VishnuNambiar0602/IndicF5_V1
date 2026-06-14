@@ -189,60 +189,16 @@ _multi_translator_instance = None
 # Shared NLLB translator instance
 nllb_translator_instance = None
 
-def get_indicf5():
-    global _indicf5_instance
-    if _indicf5_instance is None:
-        print("Indic-FS: Loading IndicF5 voice cloning model...")
-        from safetensors.torch import load_file
-        from huggingface_hub import hf_hub_download
-        
-        # Ensure torch compile is mocked
-        torch.compile = lambda model, *args, **kwargs: model
-        
-        # Load custom model structure
-        model = AutoModel.from_pretrained("ai4bharat/IndicF5", trust_remote_code=True)
-        
-        # Download and clean state dict
-        print("Indic-FS: Downloading and cleaning safetensors checkpoint...")
-        safetensors_path = hf_hub_download("ai4bharat/IndicF5", filename="model.safetensors")
-        state_dict = load_file(safetensors_path, device=device)
-        
-        clean_state_dict = {}
-        for k, v in state_dict.items():
-            new_k = k.replace("ema_model._orig_mod.", "ema_model.")
-            new_k = new_k.replace("vocoder._orig_mod.", "vocoder.")
-            clean_state_dict[new_k] = v
-            
-        print("Indic-FS: Loading cleaned state dict parameters into IndicF5 model...")
-        missing, unexpected = model.load_state_dict(clean_state_dict, strict=False)
-        if missing:
-            print(f"WARNING: Missing keys: {missing}")
-        if unexpected:
-            print(f"WARNING: Unexpected keys: {unexpected}")
-        model = model.to(device)
-        model.eval()
-        
-        class IndicF5Wrapper:
-            def __init__(self, model_instance):
-                self.model_instance = model_instance
-            def __getattr__(self, name):
-                return getattr(self.model_instance, name)
-            def __call__(self, text: str, ref_audio_path: str, ref_text: str, **kwargs):
-                import inspect
-                try:
-                    sig = inspect.signature(self.model_instance.__call__)
-                except (ValueError, TypeError):
-                    sig = inspect.signature(self.model_instance.forward)
-                model_kwargs = {}
-                for k, v in kwargs.items():
-                    if k in sig.parameters:
-                        model_kwargs[k] = v
-                print(f"Indic-FS IndicF5Wrapper: calling with text='{text[:40]}', ref_text='{ref_text[:40]}', kwargs={list(model_kwargs.keys())}")
-                return self.model_instance(text, ref_audio_path=ref_audio_path, ref_text=ref_text, **model_kwargs)
-        
-        _indicf5_instance = IndicF5Wrapper(model)
-        print("Indic-FS: IndicF5 loaded and cleaned successfully.")
-    return _indicf5_instance
+_xtts_instance = None
+
+def get_xtts():
+    global _xtts_instance
+    if _xtts_instance is None:
+        print("Indic-FS: Loading XTTS-v2 voice cloning model...")
+        from TTS.api import TTS
+        _xtts_instance = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+        print("Indic-FS: XTTS-v2 loaded successfully.")
+    return _xtts_instance
 
 def get_nllb_fallback():
     global nllb_translator_instance
@@ -327,8 +283,8 @@ def get_multi_translator():
     return _multi_translator_instance
 
 def __getattr__(name):
-    if name == "indicf5":
-        return get_indicf5()
+    if name == "xtts":
+        return get_xtts()
     elif name == "translator":
         return get_multi_translator()
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

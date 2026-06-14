@@ -176,7 +176,7 @@ def download_file(filename: str):
 @app.get("/health")
 def health():
     import models
-    models_loaded = (getattr(models, "_indicf5_instance", None) is not None) and (getattr(models, "_multi_translator_instance", None) is not None)
+    models_loaded = (getattr(models, "_xtts_instance", None) is not None) and (getattr(models, "_multi_translator_instance", None) is not None)
     return {
         "status": "ok",
         "models_loaded": models_loaded

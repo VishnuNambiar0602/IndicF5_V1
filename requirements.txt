@@ -11,6 +11,6 @@ numpy
 requests
 huggingface_hub
 indictranstoolkit
-f5-tts
+TTS
 sentencepiece
 hf_transfer

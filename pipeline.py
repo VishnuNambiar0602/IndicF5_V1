@@ -21,6 +21,19 @@ LANG_CODE_MAP = {
 # Reverse mapping
 INV_LANG_CODE_MAP = {v: k for k, v in LANG_CODE_MAP.items()}
 
+XTTS_LANG_MAP = {
+    "hin_Deva": "hi",
+    "tam_Taml": "ta",
+    "tel_Telu": "te",
+    "kan_Knda": "kn",
+    "mal_Mlym": "ml",
+    "mar_Deva": "mr",
+    "ben_Beng": "bn",
+    "pan_Guru": "pa",
+    "guj_Gujr": "gu",
+    "eng_Latn": "en",
+}
+
 def detect_language(text: str) -> str:
     """
     Detect script of text using Unicode ranges and return the IndicTrans2 language code.
@@ -139,16 +152,21 @@ def clone_and_synthesize(
                 print(f"Indic-FS Pipeline: Translated text: '{translated_text}'")
             
             # b. Synthesize speech
-            print(f"Indic-FS Pipeline: Running IndicF5 voice synthesis...")
-            # IndicF5 can take a while, so we log
-            audio_out = models.indicf5(
-                translated_text,
-                ref_audio_path=ref_audio_path,
-                ref_text=ref_text_val,
-                target_lang=tgt_lang_it,
-                lang=key_code,
-                language=key_code
+            print(f"Indic-FS Pipeline: Running XTTS-v2 voice synthesis...")
+            
+            xtts_lang = XTTS_LANG_MAP.get(tgt_lang_it, "hi")
+            print(f"Indic-FS Pipeline: XTTS lang code: {xtts_lang}")
+            print(f">>> translated_text: {repr(translated_text)}")
+            print(f">>> ref_text_val: {repr(ref_text_val)}")
+            
+            xtts = models.xtts
+            wav = xtts.tts(
+                text=translated_text,
+                speaker_wav=ref_audio_path,
+                language=xtts_lang
             )
+            
+            audio_out = np.array(wav, dtype=np.float32)
             
             # Post-processing synthesis output
             if hasattr(audio_out, "cpu"):
