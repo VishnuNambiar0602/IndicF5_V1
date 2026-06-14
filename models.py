@@ -195,6 +195,8 @@ def get_xtts():
     global _xtts_instance
     if _xtts_instance is None:
         print("Indic-FS: Loading XTTS-v2 voice cloning model...")
+        import os
+        os.environ["COQUI_TOS_AGREED"] = "1"
         from TTS.api import TTS
         _xtts_instance = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
         print("Indic-FS: XTTS-v2 loaded successfully.")
