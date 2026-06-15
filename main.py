@@ -78,6 +78,7 @@ class SynthesizeRequest(BaseModel):
     target_langs: list[str]
     source_lang: str = None
     ref_text: str = ""
+    cloning_method: str = "openvoice"
 
 @app.post("/upload-voice")
 async def upload_voice(file: UploadFile = File(...)):
@@ -141,7 +142,8 @@ async def synthesize(req: SynthesizeRequest):
             input_text=req.text,
             target_lang_codes=req.target_langs,
             source_lang=req.source_lang,
-            ref_text=req.ref_text
+            ref_text=req.ref_text,
+            cloning_method=req.cloning_method
         )
         
         # Format paths as downloadable URLs

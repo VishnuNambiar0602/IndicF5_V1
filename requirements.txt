@@ -14,3 +14,11 @@ indictranstoolkit
 TTS
 sentencepiece
 hf_transfer
+git+https://github.com/myshell-ai/OpenVoice.git
+eng_to_ipa
+jieba
+cn2an
+pypinyin
+langid
+faster-whisper
+whisper-timestamped

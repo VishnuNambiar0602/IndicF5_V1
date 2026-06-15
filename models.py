@@ -202,8 +202,62 @@ def get_xtts():
         print("Indic-FS: XTTS-v2 loaded successfully.")
     return _xtts_instance
 
+_openvoice_converter_instance = None
+
+def get_openvoice_converter():
+    global _openvoice_converter_instance
+    if _openvoice_converter_instance is None:
+        print("Indic-FS: Loading OpenVoice V2 converter model...")
+        from huggingface_hub import hf_hub_download
+        from openvoice.api import ToneColorConverter
+        
+        repo_id = "myshell-ai/OpenVoiceV2"
+        config_path = hf_hub_download(repo_id=repo_id, filename="converter/config.json")
+        checkpoint_path = hf_hub_download(repo_id=repo_id, filename="converter/checkpoint.pth")
+        
+        _openvoice_converter_instance = ToneColorConverter(config_path, device=device)
+        _openvoice_converter_instance.watermark_model = None
+        _openvoice_converter_instance.load_ckpt(checkpoint_path)
+        print("Indic-FS: OpenVoice V2 converter loaded successfully.")
+    return _openvoice_converter_instance
+
+_freevc_instance = None
+
+def get_freevc():
+    global _freevc_instance
+    if _freevc_instance is None:
+        print("Indic-FS: Loading FreeVC voice conversion model...")
+        from TTS.api import TTS
+        _freevc_instance = TTS("voice_conversion_models/multilingual/vctk/freevc24").to(device)
+        print("Indic-FS: FreeVC loaded successfully.")
+    return _freevc_instance
+
+def voice_conversion(source_wav_path: str, target_wav_path: str, output_wav_path: str, method: str = "openvoice"):
+    if method == "openvoice":
+        converter = get_openvoice_converter()
+        print(f"Indic-FS VC: Performing OpenVoice V2 conversion from {source_wav_path} to {output_wav_path} using ref {target_wav_path}...")
+        src_se = converter.extract_se(source_wav_path)
+        tgt_se = converter.extract_se(target_wav_path)
+        converter.convert(
+            audio_src_path=source_wav_path,
+            src_se=src_se,
+            tgt_se=tgt_se,
+            output_path=output_wav_path
+        )
+    else:
+        vc = get_freevc()
+        print(f"Indic-FS VC: Performing FreeVC conversion from {source_wav_path} to {output_wav_path} using ref {target_wav_path}...")
+        vc.voice_conversion_to_file(
+            source_wav=source_wav_path,
+            target_wav=target_wav_path,
+            file_path=output_wav_path
+        )
+    print("Indic-FS VC: Voice conversion completed.")
+
 # MMS-TTS lang code map (facebook/mms-tts-{lang})
 MMS_LANG_MAP = {
+    "hi": "hin",   # Hindi
+    "en": "eng",   # English
     "ta": "tam",   # Tamil
     "te": "tel",   # Telugu
     "kn": "kan",   # Kannada
@@ -341,6 +395,8 @@ def __getattr__(name):
         return get_multi_translator()
     elif name == "synthesize_mms":
         return synthesize_mms
+    elif name == "voice_conversion":
+        return voice_conversion
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 

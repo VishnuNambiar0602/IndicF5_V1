@@ -2,6 +2,7 @@ import os
 import numpy as np
 import models
 import utils
+from uuid import uuid4
 
 # Language code mapping from 2-letter code to IndicTrans2 code
 LANG_CODE_MAP = {
@@ -102,7 +103,8 @@ def clone_and_synthesize(
     input_text: str, 
     target_lang_codes: list[str],
     source_lang: str = None,
-    ref_text: str = ""
+    ref_text: str = "",
+    cloning_method: str = "openvoice"
 ) -> dict:
     """
     Clone voice from ref_audio and synthesize input_text into multiple target languages.
@@ -182,7 +184,11 @@ def clone_and_synthesize(
             
             XTTS_SUPPORTED = {"hi", "en"}
             
-            if xtts_lang in XTTS_SUPPORTED:
+            use_xtts = False
+            if cloning_method == "xtts" and xtts_lang in XTTS_SUPPORTED:
+                use_xtts = True
+                
+            if use_xtts:
                 print(f"Indic-FS Pipeline: Using XTTS-v2 for '{xtts_lang}'...")
                 xtts = models.xtts
                 wav = xtts.tts(
@@ -192,26 +198,62 @@ def clone_and_synthesize(
                 )
                 audio_out = np.array(wav, dtype=np.float32)
                 out_sr = 24000
+                
+                # Post-processing synthesis output
+                if hasattr(audio_out, "cpu"):
+                    audio_out = audio_out.cpu().numpy()
+                
+                if isinstance(audio_out, (tuple, list)):
+                    audio_out = audio_out[0]
+                    
+                if audio_out.dtype == np.int16:
+                    audio_out = audio_out.astype(np.float32) / 32768.0
+                elif audio_out.dtype == np.int32:
+                    audio_out = audio_out.astype(np.float32) / 2147483648.0
+                    
+                # c. Save audio
+                output_path = utils.generate_output_filename(key_code)
+                utils.save_audio(audio_out, out_sr, output_path)
+                print(f"Indic-FS Pipeline: Saved to {output_path}")
             else:
-                print(f"Indic-FS Pipeline: Using MMS-TTS for '{xtts_lang}'...")
+                vc_method = "openvoice" if cloning_method in ("openvoice", "xtts") else "freevc"
+                print(f"Indic-FS Pipeline: Using MMS-TTS + {vc_method.upper()} Voice Conversion for '{xtts_lang}'...")
+                # 1. Synthesize base speech using MMS-TTS
                 audio_out, out_sr = models.synthesize_mms(translated_text, xtts_lang)
-            
-            # Post-processing synthesis output
-            if hasattr(audio_out, "cpu"):
-                audio_out = audio_out.cpu().numpy()
-            
-            if isinstance(audio_out, (tuple, list)):
-                audio_out = audio_out[0]
                 
-            if audio_out.dtype == np.int16:
-                audio_out = audio_out.astype(np.float32) / 32768.0
-            elif audio_out.dtype == np.int32:
-                audio_out = audio_out.astype(np.float32) / 2147483648.0
+                # Post-processing synthesis output
+                if hasattr(audio_out, "cpu"):
+                    audio_out = audio_out.cpu().numpy()
                 
-            # c. Save audio
-            output_path = utils.generate_output_filename(key_code)
-            utils.save_audio(audio_out, out_sr, output_path)
-            print(f"Indic-FS Pipeline: Saved to {output_path}")
+                if isinstance(audio_out, (tuple, list)):
+                    audio_out = audio_out[0]
+                    
+                if audio_out.dtype == np.int16:
+                    audio_out = audio_out.astype(np.float32) / 32768.0
+                elif audio_out.dtype == np.int32:
+                    audio_out = audio_out.astype(np.float32) / 2147483648.0
+                
+                # 2. Save base speech to a temporary file
+                temp_mms_path = f"outputs/temp_mms_{key_code}_{uuid4().hex[:8]}.wav"
+                utils.save_audio(audio_out, out_sr, temp_mms_path)
+                
+                # 3. Perform voice conversion
+                output_path = utils.generate_output_filename(key_code)
+                models.voice_conversion(
+                    source_wav_path=temp_mms_path,
+                    target_wav_path=ref_audio_path,
+                    output_wav_path=output_path,
+                    method=vc_method
+                )
+                
+                # 4. Clean up the temporary MMS file
+                try:
+                    if os.path.exists(temp_mms_path):
+                        os.remove(temp_mms_path)
+                except Exception as cleanup_err:
+                    print(f"Indic-FS Warning: Failed to delete temporary MMS file {temp_mms_path}: {cleanup_err}")
+                
+                print(f"Indic-FS Pipeline: Voice-converted file saved to {output_path}")
             
             results[key_code] = output_path
             
