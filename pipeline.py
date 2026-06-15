@@ -177,21 +177,24 @@ def clone_and_synthesize(
                     print(f"Indic-FS Pipeline: Local translation: '{translated_text}'")
             
             # b. Synthesize speech
-            print(f"Indic-FS Pipeline: Running XTTS-v2 voice synthesis...")
-            
             xtts_lang = XTTS_LANG_MAP.get(tgt_lang_it, "hi")
-            print(f"Indic-FS Pipeline: XTTS lang code: {xtts_lang}")
-            print(f">>> translated_text: {repr(translated_text)}")
-            print(f">>> ref_text_val: {repr(ref_text_val)}")
+            print(f"Indic-FS Pipeline: Selecting TTS engine for '{xtts_lang}'...")
             
-            xtts = models.xtts
-            wav = xtts.tts(
-                text=translated_text,
-                speaker_wav=ref_audio_path,
-                language=xtts_lang
-            )
+            XTTS_SUPPORTED = {"hi", "en"}
             
-            audio_out = np.array(wav, dtype=np.float32)
+            if xtts_lang in XTTS_SUPPORTED:
+                print(f"Indic-FS Pipeline: Using XTTS-v2 for '{xtts_lang}'...")
+                xtts = models.xtts
+                wav = xtts.tts(
+                    text=translated_text,
+                    speaker_wav=ref_audio_path,
+                    language=xtts_lang
+                )
+                audio_out = np.array(wav, dtype=np.float32)
+                out_sr = 24000
+            else:
+                print(f"Indic-FS Pipeline: Using MMS-TTS for '{xtts_lang}'...")
+                audio_out, out_sr = models.synthesize_mms(translated_text, xtts_lang)
             
             # Post-processing synthesis output
             if hasattr(audio_out, "cpu"):
@@ -207,7 +210,7 @@ def clone_and_synthesize(
                 
             # c. Save audio
             output_path = utils.generate_output_filename(key_code)
-            utils.save_audio(audio_out, 24000, output_path)
+            utils.save_audio(audio_out, out_sr, output_path)
             print(f"Indic-FS Pipeline: Saved to {output_path}")
             
             results[key_code] = output_path

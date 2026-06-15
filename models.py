@@ -202,6 +202,56 @@ def get_xtts():
         print("Indic-FS: XTTS-v2 loaded successfully.")
     return _xtts_instance
 
+# MMS-TTS lang code map (facebook/mms-tts-{lang})
+MMS_LANG_MAP = {
+    "ta": "tam",   # Tamil
+    "te": "tel",   # Telugu
+    "kn": "kan",   # Kannada
+    "ml": "mal",   # Malayalam
+    "bn": "ben",   # Bengali
+    "mr": "mar",   # Marathi
+    "gu": "guj",   # Gujarati
+    "pa": "pan",   # Punjabi
+    "or": "ory",   # Odia
+    "as": "asm",   # Assamese
+}
+
+_mms_instances = {}  # one model per language, cached
+
+def synthesize_mms(text: str, lang_code: str) -> tuple[np.ndarray, int]:
+    """Synthesize using Meta MMS-TTS. No voice cloning — uses default speaker."""
+    global _mms_instances
+    from transformers import VitsModel, AutoTokenizer
+    import torch
+
+    mms_lang = MMS_LANG_MAP.get(lang_code)
+    if not mms_lang:
+        raise ValueError(f"MMS-TTS: unsupported language code '{lang_code}'")
+
+    model_id = f"facebook/mms-tts-{mms_lang}"
+
+    if model_id not in _mms_instances:
+        print(f"Indic-FS: Loading MMS-TTS model '{model_id}'...")
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        model = VitsModel.from_pretrained(model_id).to(device)
+        model.eval()
+        _mms_instances[model_id] = (tokenizer, model)
+        print(f"Indic-FS: MMS-TTS '{model_id}' loaded.")
+
+    tokenizer, model = _mms_instances[model_id]
+    inputs = tokenizer(text, return_tensors="pt").to(device)
+
+    with torch.no_grad():
+        output = model(**inputs).waveform
+
+    # output shape: (1, samples) — squeeze to 1D float32
+    wav = output.squeeze().cpu().float().numpy()
+    
+    # Get the correct sample rate from the model configuration
+    sampling_rate = getattr(model.config, "sampling_rate", 16000)
+    
+    return wav, sampling_rate
+
 def get_nllb_fallback():
     global nllb_translator_instance
     if nllb_translator_instance is None:
@@ -289,6 +339,8 @@ def __getattr__(name):
         return get_xtts()
     elif name == "translator":
         return get_multi_translator()
+    elif name == "synthesize_mms":
+        return synthesize_mms
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
